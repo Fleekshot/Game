@@ -12,25 +12,66 @@ app.use(express.static('public'));
 
 // Player and world state
 const players = {}; // id -> { x, y, color, name }
-const blocks = []; // [{x, y, type}]
+const blocks = []; // [{x, y, type, color, indestructible}]
 const projectiles = []; // {id, owner, x, y, vx, vy}
-const pairTimers = {}; // "id1-id2" -> ms of contact
-const heartTimeouts = {}; // timers for explosions after hearts
 const SIZE = 20;
 const WORLD_WIDTH = 2000;
 const WORLD_HEIGHT = 1000;
+const GROUND_Y = WORLD_HEIGHT - 50;
+const SPAWN_X = WORLD_WIDTH / 2 - SIZE * 2;
+const SPAWN_Y = 0;
 const CHECK_INTERVAL = 50;
 const PROJECTILE_SPEED = 10;
+
+function addBlock(x, y, type = 'solid', color = '#888', indestructible = false) {
+  blocks.push({ x, y, type, color, indestructible });
+}
+
+function buildWorld() {
+  const spawnWidth = 6;
+  const spawnHeight = 2;
+  for (let i = 0; i < spawnWidth; i++) {
+    for (let j = 0; j < spawnHeight; j++) {
+      addBlock(SPAWN_X + i * SIZE, GROUND_Y - (j + 1) * SIZE, 'solid', '#ffff00', true);
+    }
+  }
+
+  // tower
+  for (let y = 0; y < 8; y++) {
+    addBlock(200, GROUND_Y - (y + 1) * SIZE);
+    addBlock(220, GROUND_Y - (y + 1) * SIZE);
+  }
+
+  // hut
+  for (let x = 600; x < 660; x += SIZE) {
+    addBlock(x, GROUND_Y - SIZE);
+    addBlock(x, GROUND_Y - 2 * SIZE);
+  }
+  addBlock(620, GROUND_Y - 3 * SIZE);
+  addBlock(640, GROUND_Y - 3 * SIZE);
+
+  // ruins
+  addBlock(900, GROUND_Y - SIZE);
+  addBlock(920, GROUND_Y - 2 * SIZE);
+  addBlock(940, GROUND_Y - 2 * SIZE);
+
+  // floating islands
+  for (let x = 400; x < 500; x += SIZE) {
+    addBlock(x, GROUND_Y - 10 * SIZE);
+  }
+  for (let x = 1000; x < 1080; x += SIZE) {
+    addBlock(x, GROUND_Y - 14 * SIZE);
+  }
+}
+
+buildWorld();
 
 function randomColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
 }
 
 function randomSpawn() {
-  return {
-    x: Math.floor(Math.random() * (WORLD_WIDTH - SIZE)),
-    y: 0
-  };
+  return { x: SPAWN_X, y: SPAWN_Y };
 }
 
 function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
@@ -86,9 +127,9 @@ io.on('connection', (socket) => {
     block.x = Math.floor(block.x / SIZE) * SIZE;
     block.y = Math.floor(block.y / SIZE) * SIZE;
     const index = blocks.findIndex(b => b.x === block.x && b.y === block.y);
-    if (index !== -1) {
-      blocks.splice(index, 1);
-      io.emit('blockRemoved', block);
+    if (index !== -1 && !blocks[index].indestructible) {
+      const b = blocks.splice(index, 1)[0];
+      io.emit('blockRemoved', b);
     }
   });
 
@@ -117,47 +158,6 @@ io.on('connection', (socket) => {
   });
 });
 
-function checkPairs() {
-  const ids = Object.keys(players);
-  for (let i = 0; i < ids.length; i++) {
-    for (let j = i + 1; j < ids.length; j++) {
-      const id1 = ids[i];
-      const id2 = ids[j];
-      const p1 = players[id1];
-      const p2 = players[id2];
-      if (!p1 || !p2) continue;
-      const key = id1 < id2 ? id1 + '-' + id2 : id2 + '-' + id1;
-      if (Math.abs(p1.x - p2.x) < SIZE && Math.abs(p1.y - p2.y) < SIZE) {
-        pairTimers[key] = (pairTimers[key] || 0) + CHECK_INTERVAL;
-        if (pairTimers[key] >= 5000 && !heartTimeouts[key]) {
-          const hx = (p1.x + p2.x) / 2 + SIZE / 2;
-          const hy = (p1.y + p2.y) / 2 + SIZE / 2;
-          io.emit('hearts', { x: hx, y: hy });
-          heartTimeouts[key] = setTimeout(() => {
-            explode(hx, hy);
-            delete heartTimeouts[key];
-          }, 3000);
-          pairTimers[key] = 0;
-        }
-      } else {
-        pairTimers[key] = 0;
-      }
-    }
-  }
-}
-
-function explode(x, y) {
-  io.emit('explode', { x, y });
-  const radius = SIZE * 2;
-  for (const id of Object.keys(players)) {
-    const p = players[id];
-    const dx = p.x + SIZE / 2 - x;
-    const dy = p.y + SIZE / 2 - y;
-    if (Math.sqrt(dx * dx + dy * dy) <= radius) {
-      respawnPlayer(id);
-    }
-  }
-}
 
 function updateProjectiles() {
   for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -169,9 +169,8 @@ function updateProjectiles() {
       continue;
     }
     const bi = blocks.findIndex(b => rectsOverlap(pr.x, pr.y, 2, 2, b.x, b.y, SIZE, SIZE));
-    if (bi !== -1) {
-      const b = blocks[bi];
-      blocks.splice(bi, 1);
+    if (bi !== -1 && !blocks[bi].indestructible) {
+      const b = blocks.splice(bi, 1)[0];
       io.emit('blockRemoved', b);
       projectiles.splice(i, 1);
       continue;
@@ -189,7 +188,6 @@ function updateProjectiles() {
 }
 
 setInterval(() => {
-  checkPairs();
   updateProjectiles();
 }, CHECK_INTERVAL);
 

@@ -23,8 +23,11 @@ let cameraY = 0;
 let mouse = { x: 0, y: 0 };
 const input = { left: false, right: false, jump: false, up: false };
 let projectiles = [];
-const hearts = [];
-const explosions = [];
+const clouds = Array.from({ length: 5 }, () => ({
+  x: Math.random() * WORLD_WIDTH,
+  y: Math.random() * 150 + 20,
+  vx: 0.2 + Math.random() * 0.2
+}));
 
 joinBtn.addEventListener('click', () => {
   const color = colorSelect.value;
@@ -73,13 +76,6 @@ socket.on('projectiles', (list) => {
   projectiles = list;
 });
 
-socket.on('hearts', ({ x, y }) => {
-  hearts.push({ x, y, start: Date.now() });
-});
-
-socket.on('explode', ({ x, y }) => {
-  explosions.push({ x, y, start: Date.now() });
-});
 
 socket.on('playerRespawn', ({ id, x, y }) => {
   if (players[id]) {
@@ -163,6 +159,10 @@ function update() {
     if (cameraY < 0) cameraY = 0;
     if (cameraY > WORLD_HEIGHT - canvas.height) cameraY = WORLD_HEIGHT - canvas.height;
   }
+  for (const c of clouds) {
+    c.x += c.vx;
+    if (c.x > WORLD_WIDTH) c.x = -50;
+  }
   draw();
   requestAnimationFrame(update);
 }
@@ -188,6 +188,13 @@ function drawGoomba(x, y, color, name) {
 function draw() {
   ctx.fillStyle = '#87CEEB';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // clouds
+  ctx.fillStyle = '#fff';
+  for (const c of clouds) {
+    ctx.beginPath();
+    ctx.ellipse(c.x - cameraX, c.y - cameraY, 20, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.fillStyle = '#228B22';
   ctx.fillRect(0, GROUND_Y - cameraY, canvas.width, canvas.height - (GROUND_Y - cameraY));
   // Draw blocks
@@ -196,7 +203,7 @@ function draw() {
       ctx.fillStyle = '#0f0';
       ctx.fillRect(b.x - cameraX + SIZE/2 - 2, b.y - cameraY, 4, SIZE);
     } else {
-      ctx.fillStyle = '#888';
+      ctx.fillStyle = b.color || '#888';
       ctx.fillRect(b.x - cameraX, b.y - cameraY, SIZE, SIZE);
     }
   }
@@ -215,23 +222,6 @@ function draw() {
     ctx.fill();
   }
 
-  const now = Date.now();
-  for (let i = hearts.length - 1; i >= 0; i--) {
-    const h = hearts[i];
-    if (now - h.start > 3000) { hearts.splice(i, 1); continue; }
-    ctx.fillStyle = 'pink';
-    ctx.fillText('❤', h.x - cameraX, h.y - cameraY);
-  }
-
-  for (let i = explosions.length - 1; i >= 0; i--) {
-    const ex = explosions[i];
-    const t = now - ex.start;
-    if (t > 500) { explosions.splice(i, 1); continue; }
-    ctx.strokeStyle = 'orange';
-    ctx.beginPath();
-    ctx.arc(ex.x - cameraX, ex.y - cameraY, 20 * (t / 500), 0, Math.PI * 2);
-    ctx.stroke();
-  }
 }
 
 function snap(value) {
@@ -278,10 +268,6 @@ canvas.addEventListener('mousedown', (e) => {
   if (e.button === 0) {
     block.type = 'solid';
     socket.emit('placeBlock', block);
-  } else if (e.button === 2) {
-    socket.emit('removeBlock', block);
-  } else if (e.button === 1) {
-    socket.emit('removeBlock', block);
   }
 });
 
@@ -297,6 +283,11 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'q' || e.key === 'Q') {
     socket.emit('shoot', { x: cameraX + mouse.x, y: cameraY + mouse.y });
+  }
+  if (e.key === 'y' || e.key === 'Y') {
+    const worldX = snap(cameraX + mouse.x);
+    const worldY = snap(cameraY + mouse.y);
+    socket.emit('removeBlock', { x: worldX, y: worldY });
   }
 });
 

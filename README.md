@@ -21,11 +21,12 @@ This repository contains a very small multiplayer browser game that can be run i
 - The camera scrolls with you both horizontally and vertically.
 - Left click to place solid blocks.
 - Press **R** while pointing the cursor to place a climbable vine block.
-- Right click a block to destroy it.
-- Middle click also removes a block.
+- Press **Y** while pointing at a block to destroy it.
 - Press **Q** to shoot a projectile toward the mouse cursor.
 - Gravity keeps you on the ground and your position is broadcast to everyone.
 - Hold the up arrow while inside a vine block to climb it.
 - Players and solid blocks are collidable.
-- Standing next to another player for 5 seconds spawns a heart and a tiny Goomba that explodes after 3 seconds.
+- Everyone spawns in the central yellow pad. These blocks can't be destroyed.
 - Your username appears above your Goomba. If you choose **Fleekshots** as your name your Goomba will wear sunglasses.
+- Explore towers, huts, ruins and floating islands scattered around the map.
+- Animated clouds float across the background.
