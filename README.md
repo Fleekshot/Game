@@ -16,6 +16,7 @@ This repository contains a very small multiplayer browser game that can be run i
 
 ## Game Play
 
-- Click **Join Game** to spawn your square.
-- Move using the arrow keys.
-- Positions are synchronized in real-time between all connected clients.
+- Click **Join Game** to spawn your Goomba.
+- Move left and right with the arrow keys.
+- Press **space** or the up arrow to jump.
+- Gravity keeps you on the ground and your position is broadcast to everyone.

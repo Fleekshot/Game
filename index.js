@@ -13,50 +13,29 @@ app.use(express.static('public'));
 // Player management
 const players = {}; // id -> { x, y, color }
 const SIZE = 20;
-const SPEED = 5;
 
 function randomColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
-}
-
-function overlaps(id, x, y) {
-  for (const [pid, p] of Object.entries(players)) {
-    if (pid === id) continue;
-    if (Math.abs(p.x - x) < SIZE && Math.abs(p.y - y) < SIZE) {
-      return true;
-    }
-  }
-  return false;
 }
 
 io.on('connection', (socket) => {
   console.log('user connected', socket.id);
 
   socket.on('join', () => {
-    const startX = Math.floor(Math.random() * 400);
-    const startY = Math.floor(Math.random() * 400);
+    const startX = Math.floor(Math.random() * 760);
+    const startY = 0;
     players[socket.id] = { x: startX, y: startY, color: randomColor() };
     socket.emit('init', { id: socket.id, players });
     socket.broadcast.emit('playerJoined', { id: socket.id, player: players[socket.id] });
   });
 
-  socket.on('move', (dir) => {
+  socket.on('update', (pos) => {
     const player = players[socket.id];
     if (!player) return;
-    let { x, y } = player;
-    if (dir === 'up') y -= SPEED;
-    if (dir === 'down') y += SPEED;
-    if (dir === 'left') x -= SPEED;
-    if (dir === 'right') x += SPEED;
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
-    if (x > 780) x = 780; // canvas width 800 - SIZE
-    if (y > 580) y = 580; // canvas height 600 - SIZE
-    if (!overlaps(socket.id, x, y)) {
-      player.x = x;
-      player.y = y;
-      io.emit('state', players);
-    }
+    player.x = pos.x;
+    player.y = pos.y;
+    players[socket.id] = player;
+    socket.broadcast.emit('state', players);
   });
 
   socket.on('disconnect', () => {
