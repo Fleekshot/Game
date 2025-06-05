@@ -1,0 +1,37 @@
+# Minimal Multiplayer Game
+
+This repository contains a very small multiplayer browser game that can be run in GitHub Codespaces.
+
+## Running in Codespaces
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the server:
+   ```bash
+   npm start
+   ```
+3. Open the forwarded port in the Codespace to view the game. Share the URL with others to play together.
+
+## Game Play
+
+- Enter a username, choose from several colors (brown, red, green, blue, purple, white, orange) and click **Join Game** to spawn your Goomba.
+- Move left and right with the arrow keys; press **space** or the up arrow to jump.
+- The camera scrolls with you both horizontally and vertically.
+- Left click to place solid blocks.
+- Press **R** while pointing the cursor to place a climbable vine block.
+- Press **Y** while pointing at a block to destroy it.
+- Press **Q** to shoot a projectile toward the mouse cursor (1 second cooldown).
+- Gravity keeps you on the ground and your position is broadcast to everyone.
+- Hold the up arrow while inside a vine block to climb it.
+- Players and solid blocks are collidable.
+- Everyone spawns in the central yellow pad. These blocks can't be destroyed.
+- Your username appears above your Goomba. If you choose **Fleekshots** as your name your Goomba will wear sunglasses.
+- Explore large wooden, stone and metal buildings with interiors you can enter.
+- A mine shaft on the far right leads deep underground. Turrets line the shaft creating a bullet hell as you descend. Hidden buttons there and in other buildings open the Golden Temple on a cloud island.
+- Animated clouds float across the background.
+- Press **E** when near a pink button block to activate it.
+- Press **E** near the golden NPC "God" atop the temple to begin a boss fight once all three buttons are pressed.
+- Choosing the username **shitass** unlocks a destructive easter egg when pressing **Q**.
+- You can dig downward through normal ground blocks all the way to the bottom of the world.

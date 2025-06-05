@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Minimal Multiplayer Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; background: #555; }
+    #join { position: absolute; top: 20px; left: 130px; z-index: 1; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <input id="name" placeholder="Username" style="position:absolute;top:20px;left:20px;z-index:1;padding:6px;width:100px;" />
+  <button id="join" style="left:130px">Join Game</button>
+  <select id="color" style="position:absolute;top:20px;left:220px;z-index:1;">
+    <option value="#8B4513">Brown</option>
+    <option value="#ff0000">Red</option>
+    <option value="#00aa00">Green</option>
+    <option value="#0000ff">Blue</option>
+    <option value="#800080">Purple</option>
+    <option value="#ffffff">White</option>
+    <option value="#ffa500">Orange</option>
+  </select>
+  <canvas id="game" width="800" height="600" style="display:block;margin:0 auto;border:2px solid #000;"></canvas>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
