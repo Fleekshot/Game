@@ -4,10 +4,12 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const joinBtn = document.getElementById('join');
 const colorSelect = document.getElementById('color');
+const nameInput = document.getElementById('name');
 
 const SIZE = 20;
-const GROUND_Y = canvas.height - 50;
 const WORLD_WIDTH = 2000;
+const WORLD_HEIGHT = 1000;
+const GROUND_Y = WORLD_HEIGHT - 50;
 const SPEED = 6;
 const GRAVITY = 0.6;
 const JUMP_VEL = -12;
@@ -17,13 +19,17 @@ let playerId = null;
 let players = {};
 let blocks = [];
 let cameraX = 0;
+let cameraY = 0;
+let mouse = { x: 0, y: 0 };
 const input = { left: false, right: false, jump: false, up: false };
 
 joinBtn.addEventListener('click', () => {
   const color = colorSelect.value;
-  socket.emit('join', color);
+  const name = nameInput.value.trim() || 'Player';
+  socket.emit('join', { color, name });
   joinBtn.style.display = 'none';
   colorSelect.style.display = 'none';
+  nameInput.style.display = 'none';
 });
 
 socket.on('init', (data) => {
@@ -113,6 +119,10 @@ function applyPhysics(p) {
     p.vy = 0;
     p.onGround = true;
   }
+  if (p.y < 0) {
+    p.y = 0;
+    p.vy = 0;
+  }
 }
 
 function update() {
@@ -123,14 +133,17 @@ function update() {
     collideWithPlayers(me);
     socket.emit('update', { x: me.x, y: me.y });
     cameraX = me.x - canvas.width / 2;
+    cameraY = me.y - canvas.height / 2;
     if (cameraX < 0) cameraX = 0;
     if (cameraX > WORLD_WIDTH - canvas.width) cameraX = WORLD_WIDTH - canvas.width;
+    if (cameraY < 0) cameraY = 0;
+    if (cameraY > WORLD_HEIGHT - canvas.height) cameraY = WORLD_HEIGHT - canvas.height;
   }
   draw();
   requestAnimationFrame(update);
 }
 
-function drawGoomba(x, y, color) {
+function drawGoomba(x, y, color, name) {
   ctx.fillStyle = color || '#8B4513';
   ctx.fillRect(x, y + 4, SIZE, SIZE - 4);
   ctx.fillStyle = '#000';
@@ -142,25 +155,33 @@ function drawGoomba(x, y, color) {
   ctx.fillStyle = '#000';
   ctx.fillRect(x + 5, y + 7, 2, 2);
   ctx.fillRect(x + SIZE - 7, y + 7, 2, 2);
+  if (name === 'Fleekshots') {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x + 1, y + 8, SIZE - 2, 4);
+  }
 }
 
 function draw() {
   ctx.fillStyle = '#87CEEB';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#228B22';
-  ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+  ctx.fillRect(0, GROUND_Y - cameraY, canvas.width, canvas.height - (GROUND_Y - cameraY));
   // Draw blocks
   for (const b of blocks) {
     if (b.type === 'vine') {
       ctx.fillStyle = '#0f0';
-      ctx.fillRect(b.x - cameraX + SIZE/2 - 2, b.y, 4, SIZE);
+      ctx.fillRect(b.x - cameraX + SIZE/2 - 2, b.y - cameraY, 4, SIZE);
     } else {
       ctx.fillStyle = '#888';
-      ctx.fillRect(b.x - cameraX, b.y, SIZE, SIZE);
+      ctx.fillRect(b.x - cameraX, b.y - cameraY, SIZE, SIZE);
     }
   }
   for (const [id, p] of Object.entries(players)) {
-    drawGoomba(p.x - cameraX, p.y, p.color);
+    drawGoomba(p.x - cameraX, p.y - cameraY, p.color, p.name);
+    ctx.fillStyle = '#000';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, p.x - cameraX + SIZE / 2, p.y - cameraY - 2);
   }
 }
 
@@ -196,9 +217,14 @@ function collideWithPlayers(p) {
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+canvas.addEventListener('mousemove', (e) => {
+  mouse.x = e.offsetX;
+  mouse.y = e.offsetY;
+});
+
 canvas.addEventListener('mousedown', (e) => {
   const worldX = snap(cameraX + e.offsetX);
-  const worldY = snap(e.offsetY);
+  const worldY = snap(cameraY + e.offsetY);
   const block = { x: worldX, y: worldY };
   if (e.button === 0) {
     block.type = 'solid';
@@ -216,6 +242,11 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') input.right = true;
   if (e.key === ' ') input.jump = true;
   if (e.key === 'ArrowUp') { input.up = true; input.jump = true; }
+  if (e.key === 't' || e.key === 'T') {
+    const worldX = snap(cameraX + mouse.x);
+    const worldY = snap(cameraY + mouse.y);
+    socket.emit('removeBlock', { x: worldX, y: worldY });
+  }
 });
 
 document.addEventListener('keyup', (e) => {

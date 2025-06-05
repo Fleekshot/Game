@@ -11,10 +11,11 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static('public'));
 
 // Player and world state
-const players = {}; // id -> { x, y, color }
+const players = {}; // id -> { x, y, color, name }
 const blocks = []; // [{x, y, type}]
 const SIZE = 20;
 const WORLD_WIDTH = 2000;
+const WORLD_HEIGHT = 1000;
 
 function randomColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
@@ -23,10 +24,15 @@ function randomColor() {
 io.on('connection', (socket) => {
   console.log('user connected', socket.id);
 
-  socket.on('join', (color) => {
+  socket.on('join', ({ color, name }) => {
     const startX = Math.floor(Math.random() * (WORLD_WIDTH - SIZE));
     const startY = 0;
-    players[socket.id] = { x: startX, y: startY, color: color || randomColor() };
+    players[socket.id] = {
+      x: startX,
+      y: startY,
+      color: color || randomColor(),
+      name: name || 'Player'
+    };
     socket.emit('init', { id: socket.id, players, blocks });
     socket.broadcast.emit('playerJoined', { id: socket.id, player: players[socket.id] });
   });
@@ -35,7 +41,7 @@ io.on('connection', (socket) => {
     const player = players[socket.id];
     if (!player) return;
     player.x = Math.max(0, Math.min(WORLD_WIDTH - SIZE, pos.x));
-    player.y = pos.y;
+    player.y = Math.max(0, Math.min(WORLD_HEIGHT - SIZE, pos.y));
     players[socket.id] = player;
     socket.broadcast.emit('state', players);
   });
@@ -43,7 +49,7 @@ io.on('connection', (socket) => {
   socket.on('placeBlock', (block) => {
     if (!block) return;
     block.x = Math.max(0, Math.min(WORLD_WIDTH - SIZE, Math.floor(block.x / SIZE) * SIZE));
-    block.y = Math.floor(block.y / SIZE) * SIZE;
+    block.y = Math.max(0, Math.min(WORLD_HEIGHT - SIZE, Math.floor(block.y / SIZE) * SIZE));
     block.type = block.type === 'vine' ? 'vine' : 'solid';
     const exists = blocks.find(b => b.x === block.x && b.y === block.y);
     if (!exists) {

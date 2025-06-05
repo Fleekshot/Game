@@ -16,13 +16,14 @@ This repository contains a very small multiplayer browser game that can be run i
 
 ## Game Play
 
-- Click **Join Game** to spawn your Goomba.
-- Select a color then click **Join Game** to spawn your Goomba.
+- Enter a username, pick a color and click **Join Game** to spawn your Goomba.
 - Move left and right with the arrow keys; press **space** or the up arrow to jump.
-- The camera scrolls horizontally as you move.
+- The camera scrolls with you both horizontally and vertically.
 - Left click to place solid blocks.
 - Right click to place climbable vines.
 - Middle click removes a block.
+- Hover over a block and press **T** to destroy it.
 - Gravity keeps you on the ground and your position is broadcast to everyone.
 - Hold the up arrow while inside a vine block to climb it.
 - Players and solid blocks are collidable.
+- Your username appears above your Goomba. If you choose **Fleekshots** as your name your Goomba will wear sunglasses.

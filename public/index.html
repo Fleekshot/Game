@@ -5,12 +5,13 @@
   <title>Minimal Multiplayer Game</title>
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; background: #555; }
-    #join { position: absolute; top: 20px; left: 20px; z-index: 1; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    #join { position: absolute; top: 20px; left: 130px; z-index: 1; padding: 10px 20px; font-size: 16px; cursor: pointer; }
   </style>
 </head>
 <body>
-  <button id="join">Join Game</button>
-  <select id="color" style="position:absolute;top:20px;left:120px;z-index:1;">
+  <input id="name" placeholder="Username" style="position:absolute;top:20px;left:20px;z-index:1;padding:6px;width:100px;" />
+  <button id="join" style="left:130px">Join Game</button>
+  <select id="color" style="position:absolute;top:20px;left:220px;z-index:1;">
     <option value="#8B4513">Brown</option>
     <option value="#ff0000">Red</option>
     <option value="#00aa00">Green</option>
