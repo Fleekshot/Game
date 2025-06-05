@@ -7,8 +7,8 @@ const colorSelect = document.getElementById('color');
 const nameInput = document.getElementById('name');
 
 const SIZE = 20;
-const WORLD_WIDTH = 2000;
-const WORLD_HEIGHT = 1000;
+const WORLD_WIDTH = 4000;
+const WORLD_HEIGHT = 2500;
 const GROUND_Y = WORLD_HEIGHT - 50;
 const SPEED = 6;
 const GRAVITY = 0.6;
@@ -23,6 +23,8 @@ let cameraY = 0;
 let mouse = { x: 0, y: 0 };
 const input = { left: false, right: false, jump: false, up: false };
 let projectiles = [];
+let buttons = [];
+let turrets = [];
 const clouds = Array.from({ length: 5 }, () => ({
   x: Math.random() * WORLD_WIDTH,
   y: Math.random() * 150 + 20,
@@ -42,6 +44,8 @@ socket.on('init', (data) => {
   playerId = data.id;
   players = data.players;
   blocks = data.blocks || [];
+  buttons = data.buttons || [];
+  turrets = data.turrets || [];
   players[playerId].vy = 0;
   players[playerId].onGround = false;
   requestAnimationFrame(update);
@@ -57,6 +61,20 @@ socket.on('playerLeft', (id) => {
 
 socket.on('blockPlaced', (block) => {
   blocks.push(block);
+});
+
+socket.on('buttonPressed', (id) => {
+  const btn = buttons.find(b => b.id === id);
+  if (btn) btn.pressed = true;
+});
+
+socket.on('turretDestroyed', (id) => {
+  const idx = turrets.findIndex(t => t.id === id);
+  if (idx !== -1) turrets.splice(idx, 1);
+});
+
+socket.on('templeOpened', () => {
+  // door removed via blockRemoved; nothing else needed
 });
 
 socket.on('blockRemoved', (block) => {
@@ -207,6 +225,16 @@ function draw() {
       ctx.fillRect(b.x - cameraX, b.y - cameraY, SIZE, SIZE);
     }
   }
+  // buttons
+  for (const btn of buttons) {
+    if (btn.pressed) ctx.fillStyle = '#555';
+    else ctx.fillStyle = '#ff00ff';
+    ctx.fillRect(btn.x - cameraX + SIZE/4, btn.y - cameraY + SIZE/4, SIZE/2, SIZE/2);
+  }
+  for (const t of turrets) {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(t.x - cameraX, t.y - cameraY, SIZE, SIZE);
+  }
   for (const [id, p] of Object.entries(players)) {
     drawGoomba(p.x - cameraX, p.y - cameraY, p.color, p.name);
     ctx.fillStyle = '#000';
@@ -288,6 +316,9 @@ document.addEventListener('keydown', (e) => {
     const worldX = snap(cameraX + mouse.x);
     const worldY = snap(cameraY + mouse.y);
     socket.emit('removeBlock', { x: worldX, y: worldY });
+  }
+  if (e.key === 'e' || e.key === 'E') {
+    socket.emit('pressButton');
   }
 });
 

@@ -22,11 +22,13 @@ This repository contains a very small multiplayer browser game that can be run i
 - Left click to place solid blocks.
 - Press **R** while pointing the cursor to place a climbable vine block.
 - Press **Y** while pointing at a block to destroy it.
-- Press **Q** to shoot a projectile toward the mouse cursor.
+- Press **Q** to shoot a projectile toward the mouse cursor (1 second cooldown).
 - Gravity keeps you on the ground and your position is broadcast to everyone.
 - Hold the up arrow while inside a vine block to climb it.
 - Players and solid blocks are collidable.
 - Everyone spawns in the central yellow pad. These blocks can't be destroyed.
 - Your username appears above your Goomba. If you choose **Fleekshots** as your name your Goomba will wear sunglasses.
-- Explore towers, huts, ruins and floating islands scattered around the map.
+- Explore large wooden, stone and metal buildings with interiors you can enter.
+- A mine shaft on the far right leads underground to a laboratory guarded by a turret. Hidden buttons there and in other buildings open the Golden Temple on a cloud island.
 - Animated clouds float across the background.
+- Press **E** when near a pink button block to activate it.
