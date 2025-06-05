@@ -22,6 +22,9 @@ let cameraX = 0;
 let cameraY = 0;
 let mouse = { x: 0, y: 0 };
 const input = { left: false, right: false, jump: false, up: false };
+let projectiles = [];
+const hearts = [];
+const explosions = [];
 
 joinBtn.addEventListener('click', () => {
   const color = colorSelect.value;
@@ -63,6 +66,27 @@ socket.on('state', (serverPlayers) => {
     if (id !== playerId) {
       players[id] = p;
     }
+  }
+});
+
+socket.on('projectiles', (list) => {
+  projectiles = list;
+});
+
+socket.on('hearts', ({ x, y }) => {
+  hearts.push({ x, y, start: Date.now() });
+});
+
+socket.on('explode', ({ x, y }) => {
+  explosions.push({ x, y, start: Date.now() });
+});
+
+socket.on('playerRespawn', ({ id, x, y }) => {
+  if (players[id]) {
+    players[id].x = x;
+    players[id].y = y;
+    players[id].vy = 0;
+    players[id].onGround = false;
   }
 });
 
@@ -183,6 +207,31 @@ function draw() {
     ctx.textAlign = 'center';
     ctx.fillText(p.name, p.x - cameraX + SIZE / 2, p.y - cameraY - 2);
   }
+
+  ctx.fillStyle = 'red';
+  for (const pr of projectiles) {
+    ctx.beginPath();
+    ctx.arc(pr.x - cameraX, pr.y - cameraY, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const now = Date.now();
+  for (let i = hearts.length - 1; i >= 0; i--) {
+    const h = hearts[i];
+    if (now - h.start > 3000) { hearts.splice(i, 1); continue; }
+    ctx.fillStyle = 'pink';
+    ctx.fillText('❤', h.x - cameraX, h.y - cameraY);
+  }
+
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    const ex = explosions[i];
+    const t = now - ex.start;
+    if (t > 500) { explosions.splice(i, 1); continue; }
+    ctx.strokeStyle = 'orange';
+    ctx.beginPath();
+    ctx.arc(ex.x - cameraX, ex.y - cameraY, 20 * (t / 500), 0, Math.PI * 2);
+    ctx.stroke();
+  }
 }
 
 function snap(value) {
@@ -230,8 +279,7 @@ canvas.addEventListener('mousedown', (e) => {
     block.type = 'solid';
     socket.emit('placeBlock', block);
   } else if (e.button === 2) {
-    block.type = 'vine';
-    socket.emit('placeBlock', block);
+    socket.emit('removeBlock', block);
   } else if (e.button === 1) {
     socket.emit('removeBlock', block);
   }
@@ -242,10 +290,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') input.right = true;
   if (e.key === ' ') input.jump = true;
   if (e.key === 'ArrowUp') { input.up = true; input.jump = true; }
-  if (e.key === 't' || e.key === 'T') {
+  if (e.key === 'r' || e.key === 'R') {
     const worldX = snap(cameraX + mouse.x);
     const worldY = snap(cameraY + mouse.y);
-    socket.emit('removeBlock', { x: worldX, y: worldY });
+    socket.emit('placeBlock', { x: worldX, y: worldY, type: 'vine' });
+  }
+  if (e.key === 'q' || e.key === 'Q') {
+    socket.emit('shoot', { x: cameraX + mouse.x, y: cameraY + mouse.y });
   }
 });
 
