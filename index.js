@@ -10,9 +10,11 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
-// Player management
+// Player and world state
 const players = {}; // id -> { x, y, color }
+const blocks = []; // [{x, y}]
 const SIZE = 20;
+const WORLD_WIDTH = 2000;
 
 function randomColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
@@ -21,21 +23,42 @@ function randomColor() {
 io.on('connection', (socket) => {
   console.log('user connected', socket.id);
 
-  socket.on('join', () => {
-    const startX = Math.floor(Math.random() * 760);
+  socket.on('join', (color) => {
+    const startX = Math.floor(Math.random() * (WORLD_WIDTH - SIZE));
     const startY = 0;
-    players[socket.id] = { x: startX, y: startY, color: randomColor() };
-    socket.emit('init', { id: socket.id, players });
+    players[socket.id] = { x: startX, y: startY, color: color || randomColor() };
+    socket.emit('init', { id: socket.id, players, blocks });
     socket.broadcast.emit('playerJoined', { id: socket.id, player: players[socket.id] });
   });
 
   socket.on('update', (pos) => {
     const player = players[socket.id];
     if (!player) return;
-    player.x = pos.x;
+    player.x = Math.max(0, Math.min(WORLD_WIDTH - SIZE, pos.x));
     player.y = pos.y;
     players[socket.id] = player;
     socket.broadcast.emit('state', players);
+  });
+
+  socket.on('placeBlock', (block) => {
+    if (!block) return;
+    block.x = Math.max(0, Math.min(WORLD_WIDTH - SIZE, Math.floor(block.x / SIZE) * SIZE));
+    block.y = Math.floor(block.y / SIZE) * SIZE;
+    const exists = blocks.find(b => b.x === block.x && b.y === block.y);
+    if (!exists) {
+      blocks.push(block);
+      io.emit('blockPlaced', block);
+    }
+  });
+
+  socket.on('removeBlock', (block) => {
+    block.x = Math.floor(block.x / SIZE) * SIZE;
+    block.y = Math.floor(block.y / SIZE) * SIZE;
+    const index = blocks.findIndex(b => b.x === block.x && b.y === block.y);
+    if (index !== -1) {
+      blocks.splice(index, 1);
+      io.emit('blockRemoved', block);
+    }
   });
 
   socket.on('disconnect', () => {

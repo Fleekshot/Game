@@ -17,6 +17,8 @@ This repository contains a very small multiplayer browser game that can be run i
 ## Game Play
 
 - Click **Join Game** to spawn your Goomba.
-- Move left and right with the arrow keys.
-- Press **space** or the up arrow to jump.
+- Select a color then click **Join Game** to spawn your Goomba.
+- Move left and right with the arrow keys; press **space** or the up arrow to jump.
+- The camera scrolls horizontally as you move.
+- Left click to place blocks and right click to remove them.
 - Gravity keeps you on the ground and your position is broadcast to everyone.
