@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Minimal Multiplayer Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #join { position: absolute; top: 10px; left: 10px; z-index: 1; }
+  </style>
+</head>
+<body>
+  <button id="join">Join Game</button>
+  <canvas id="game" width="800" height="600"></canvas>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
