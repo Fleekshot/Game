@@ -16,17 +16,20 @@ const blocks = []; // [{x, y, type, color, indestructible}]
 const projectiles = []; // {id, owner, x, y, vx, vy}
 const SIZE = 20;
 const WORLD_WIDTH = 4000;
-const WORLD_HEIGHT = 2500;
+const WORLD_HEIGHT = 5000; // deeper world for the expanded mine
 const GROUND_Y = WORLD_HEIGHT - 50;
 const SPAWN_X = WORLD_WIDTH / 2 - SIZE * 2;
 const SPAWN_Y = 0;
 const CHECK_INTERVAL = 50;
 const PROJECTILE_SPEED = 10;
+const TURRET_SPEED = 4;
 const SHOOT_COOLDOWN = 1000;
 const lastShoot = {}; // id -> timestamp
 
 function addBlock(x, y, type = 'solid', color = '#888', indestructible = false) {
-  blocks.push({ x, y, type, color, indestructible });
+  if (!blocks.find(b => b.x === x && b.y === y)) {
+    blocks.push({ x, y, type, color, indestructible });
+  }
 }
 
 const buttons = []; // {id,x,y,pressed}
@@ -35,6 +38,8 @@ let buttonsPressed = 0;
 let templeOpen = false;
 let templeDoor = null;
 const turretCooldown = {}; // id -> timestamp
+const god = { x: 0, y: 0, health: 10, fighting: false };
+const ARENA_POS = { x: WORLD_WIDTH / 2 - SIZE * 2, y: WORLD_HEIGHT - 40 * SIZE };
 
 function addRectangle(x, y, w, h, color = '#888', indestructible = false) {
   for (let i = 0; i < w; i++) {
@@ -47,6 +52,12 @@ function addRectangle(x, y, w, h, color = '#888', indestructible = false) {
 }
 
 function buildWorld() {
+  // fill ground that players can dig through
+  for (let x = 0; x < WORLD_WIDTH; x += SIZE) {
+    for (let y = GROUND_Y; y < WORLD_HEIGHT; y += SIZE) {
+      addBlock(x, y, 'solid', '#7c5a3b');
+    }
+  }
   const spawnWidth = 6;
   const spawnHeight = 2;
   for (let i = 0; i < spawnWidth; i++) {
@@ -95,6 +106,22 @@ function buildWorld() {
   addRectangle(2020, GROUND_Y - 23 * SIZE, 4, 4, '#ffd700', true);
   templeDoor = { x: 2038, y: GROUND_Y - 24 * SIZE };
   addBlock(templeDoor.x, templeDoor.y, 'solid', '#ffd700', true);
+
+  // God NPC positioned on top of the temple
+  god.x = 2038;
+  god.y = GROUND_Y - 27 * SIZE;
+
+  // deeper mine shaft walls
+  for (let y = GROUND_Y; y < WORLD_HEIGHT - SIZE; y += SIZE) {
+    addBlock(shaftX1 - SIZE, y, 'solid', '#654321');
+    addBlock(shaftX2 + SIZE, y, 'solid', '#654321');
+  }
+
+  // populate mine with many turrets
+  for (let y = GROUND_Y - 5 * SIZE; y < WORLD_HEIGHT - SIZE * 10; y += 200) {
+    const id = 'mt' + y;
+    turrets.push({ id, x: shaftX1 + SIZE * 0.5, y: y, health: 2 });
+  }
 }
 
 buildWorld();
@@ -131,7 +158,7 @@ io.on('connection', (socket) => {
       color: color || randomColor(),
       name: name || 'Player'
     };
-    socket.emit('init', { id: socket.id, players, blocks, buttons, turrets, templeOpen });
+    socket.emit('init', { id: socket.id, players, blocks, buttons, turrets, templeOpen, god });
     socket.broadcast.emit('playerJoined', { id: socket.id, player: players[socket.id] });
   });
 
@@ -164,6 +191,38 @@ io.on('connection', (socket) => {
       const b = blocks.splice(index, 1)[0];
       io.emit('blockRemoved', b);
     }
+  });
+
+  socket.on('interactGod', () => {
+    const p = players[socket.id];
+    if (!p) return;
+    if (rectsOverlap(p.x, p.y, SIZE, SIZE, god.x, god.y, SIZE, SIZE)) {
+      if (buttonsPressed >= 3) {
+        // teleport player to arena and start fight
+        p.x = ARENA_POS.x;
+        p.y = ARENA_POS.y;
+        god.fighting = true;
+        god.x = ARENA_POS.x + SIZE * 4;
+        god.y = ARENA_POS.y;
+        god.health = 20;
+        io.to(socket.id).emit('enterArena', { x: p.x, y: p.y });
+        io.emit('godUpdate', god);
+      } else {
+        io.to(socket.id).emit('godMessage', 'Find all buttons first.');
+      }
+    }
+  });
+
+  socket.on('shitass', () => {
+    const p = players[socket.id];
+    if (!p || p.name.toLowerCase() !== 'shitass') return;
+    for (const id of Object.keys(players)) {
+      respawnPlayer(id);
+    }
+    blocks.length = 0;
+    turrets.length = 0;
+    io.emit('clearBlocks');
+    io.emit('clearTurrets');
   });
 
   socket.on('pressButton', () => {
@@ -204,7 +263,8 @@ io.on('connection', (socket) => {
       x: startX,
       y: startY,
       vx: (dx / dist) * PROJECTILE_SPEED,
-      vy: (dy / dist) * PROJECTILE_SPEED
+      vy: (dy / dist) * PROJECTILE_SPEED,
+      size: 4
     });
   });
 
@@ -225,7 +285,7 @@ function updateProjectiles() {
       projectiles.splice(i, 1);
       continue;
     }
-    const bi = blocks.findIndex(b => rectsOverlap(pr.x, pr.y, 2, 2, b.x, b.y, SIZE, SIZE));
+    const bi = blocks.findIndex(b => rectsOverlap(pr.x, pr.y, pr.size || 2, pr.size || 2, b.x, b.y, SIZE, SIZE));
     if (bi !== -1 && !blocks[bi].indestructible) {
       const b = blocks.splice(bi, 1)[0];
       io.emit('blockRemoved', b);
@@ -234,14 +294,14 @@ function updateProjectiles() {
     }
     for (const [id, p] of Object.entries(players)) {
       if (id === pr.owner) continue;
-      if (rectsOverlap(pr.x, pr.y, 2, 2, p.x, p.y, SIZE, SIZE)) {
+      if (rectsOverlap(pr.x, pr.y, pr.size || 2, pr.size || 2, p.x, p.y, SIZE, SIZE)) {
         respawnPlayer(id);
         projectiles.splice(i, 1);
         break;
       }
     }
     for (const t of turrets) {
-      if (rectsOverlap(pr.x, pr.y, 2, 2, t.x, t.y, SIZE, SIZE)) {
+      if (rectsOverlap(pr.x, pr.y, pr.size || 2, pr.size || 2, t.x, t.y, SIZE, SIZE)) {
         t.health -= 1;
         if (t.health <= 0) {
           const idx = turrets.indexOf(t);
@@ -251,6 +311,15 @@ function updateProjectiles() {
         projectiles.splice(i, 1);
         break;
       }
+    }
+    if (god.fighting && rectsOverlap(pr.x, pr.y, pr.size || 2, pr.size || 2, god.x, god.y, SIZE, SIZE)) {
+      god.health -= 1;
+      if (god.health <= 0) {
+        god.fighting = false;
+        io.emit('godDefeated');
+      }
+      io.emit('godUpdate', god);
+      projectiles.splice(i, 1);
     }
   }
   io.emit('projectiles', projectiles);
@@ -270,7 +339,7 @@ function updateTurrets() {
       const ds = dx * dx + dy * dy;
       if (ds < distSq) { distSq = ds; target = p; }
     }
-    if (target) {
+    if (target && Math.abs(target.x - t.x) < 400 && Math.abs(target.y - t.y) < 300) {
       const dx = target.x - t.x;
       const dy = target.y - t.y;
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -279,8 +348,9 @@ function updateTurrets() {
         owner: 'turret_' + t.id,
         x: t.x,
         y: t.y,
-        vx: (dx / d) * PROJECTILE_SPEED,
-        vy: (dy / d) * PROJECTILE_SPEED
+        vx: (dx / d) * TURRET_SPEED,
+        vy: (dy / d) * TURRET_SPEED,
+        size: 8
       });
     }
   }

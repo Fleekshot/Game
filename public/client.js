@@ -8,7 +8,7 @@ const nameInput = document.getElementById('name');
 
 const SIZE = 20;
 const WORLD_WIDTH = 4000;
-const WORLD_HEIGHT = 2500;
+const WORLD_HEIGHT = 5000;
 const GROUND_Y = WORLD_HEIGHT - 50;
 const SPEED = 6;
 const GRAVITY = 0.6;
@@ -25,6 +25,7 @@ const input = { left: false, right: false, jump: false, up: false };
 let projectiles = [];
 let buttons = [];
 let turrets = [];
+let god = {};
 const clouds = Array.from({ length: 5 }, () => ({
   x: Math.random() * WORLD_WIDTH,
   y: Math.random() * 150 + 20,
@@ -46,6 +47,7 @@ socket.on('init', (data) => {
   blocks = data.blocks || [];
   buttons = data.buttons || [];
   turrets = data.turrets || [];
+  god = data.god || {};
   players[playerId].vy = 0;
   players[playerId].onGround = false;
   requestAnimationFrame(update);
@@ -92,6 +94,34 @@ socket.on('state', (serverPlayers) => {
 
 socket.on('projectiles', (list) => {
   projectiles = list;
+});
+
+socket.on('clearBlocks', () => {
+  blocks = [];
+});
+
+socket.on('clearTurrets', () => {
+  turrets = [];
+});
+
+socket.on('godDefeated', () => {
+  god.fighting = false;
+});
+
+socket.on('godUpdate', (g) => {
+  god = g;
+});
+
+socket.on('enterArena', (pos) => {
+  const me = players[playerId];
+  if (me) {
+    me.x = pos.x;
+    me.y = pos.y;
+  }
+});
+
+socket.on('godMessage', (msg) => {
+  console.log(msg);
 });
 
 
@@ -235,6 +265,10 @@ function draw() {
     ctx.fillStyle = '#222';
     ctx.fillRect(t.x - cameraX, t.y - cameraY, SIZE, SIZE);
   }
+  if (!god.fighting) {
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(god.x - cameraX, god.y - cameraY, SIZE, SIZE);
+  }
   for (const [id, p] of Object.entries(players)) {
     drawGoomba(p.x - cameraX, p.y - cameraY, p.color, p.name);
     ctx.fillStyle = '#000';
@@ -246,7 +280,7 @@ function draw() {
   ctx.fillStyle = 'red';
   for (const pr of projectiles) {
     ctx.beginPath();
-    ctx.arc(pr.x - cameraX, pr.y - cameraY, 4, 0, Math.PI * 2);
+    ctx.arc(pr.x - cameraX, pr.y - cameraY, pr.size || 4, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -310,7 +344,12 @@ document.addEventListener('keydown', (e) => {
     socket.emit('placeBlock', { x: worldX, y: worldY, type: 'vine' });
   }
   if (e.key === 'q' || e.key === 'Q') {
-    socket.emit('shoot', { x: cameraX + mouse.x, y: cameraY + mouse.y });
+    const me = players[playerId];
+    if (me && me.name.toLowerCase() === 'shitass') {
+      socket.emit('shitass');
+    } else {
+      socket.emit('shoot', { x: cameraX + mouse.x, y: cameraY + mouse.y });
+    }
   }
   if (e.key === 'y' || e.key === 'Y') {
     const worldX = snap(cameraX + mouse.x);
@@ -319,6 +358,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'e' || e.key === 'E') {
     socket.emit('pressButton');
+    socket.emit('interactGod');
   }
 });
 
