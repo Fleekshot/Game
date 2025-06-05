@@ -12,7 +12,7 @@ app.use(express.static('public'));
 
 // Player and world state
 const players = {}; // id -> { x, y, color }
-const blocks = []; // [{x, y}]
+const blocks = []; // [{x, y, type}]
 const SIZE = 20;
 const WORLD_WIDTH = 2000;
 
@@ -44,6 +44,7 @@ io.on('connection', (socket) => {
     if (!block) return;
     block.x = Math.max(0, Math.min(WORLD_WIDTH - SIZE, Math.floor(block.x / SIZE) * SIZE));
     block.y = Math.floor(block.y / SIZE) * SIZE;
+    block.type = block.type === 'vine' ? 'vine' : 'solid';
     const exists = blocks.find(b => b.x === block.x && b.y === block.y);
     if (!exists) {
       blocks.push(block);
